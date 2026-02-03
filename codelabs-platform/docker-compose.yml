@@ -1,0 +1,61 @@
+version: '3.8'
+
+services:
+  # MongoDB Database
+  mongodb:
+    image: mongo:7
+    container_name: codelabs-mongodb
+    restart: always
+    ports:
+      - "27017:27017"
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: admin
+      MONGO_INITDB_ROOT_PASSWORD: password123
+      MONGO_INITDB_DATABASE: codelabs
+    volumes:
+      - mongodb_data:/data/db
+    networks:
+      - codelabs-network
+
+  # Backend API + Socket.io
+  backend:
+    build: .
+    container_name: codelabs-backend
+    restart: always
+    ports:
+      - "5000:5000"
+    environment:
+      NODE_ENV: production
+      PORT: 5000
+      MONGODB_URI: mongodb://admin:password123@mongodb:27017/codelabs?authSource=admin
+      JWT_SECRET: your-secret-key-change-in-production
+      CLIENT_URL: http://localhost:3000
+    depends_on:
+      - mongodb
+    networks:
+      - codelabs-network
+
+  # Frontend (for production-like testing)
+  frontend:
+    build:
+      context: ./client
+      dockerfile: Dockerfile
+    container_name: codelabs-frontend
+    restart: always
+    ports:
+      - "3000:80"
+    environment:
+      REACT_APP_API_URL: http://localhost:5000/api
+      REACT_APP_SOCKET_URL: http://localhost:5000
+    depends_on:
+      - backend
+    networks:
+      - codelabs-network
+
+volumes:
+  mongodb_data:
+    driver: local
+
+networks:
+  codelabs-network:
+    driver: bridge
